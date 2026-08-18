@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>YMZ770B/C // AMM Workbench</title>
+  <script>if(location.protocol==='file:')location.replace('http://127.0.0.1:8765/');</script>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="sequence.css">
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div><span class="eyebrow">YAMAHA SOUND PROCESSOR</span><h1>YMZ770B/C <i>AMM</i></h1></div>
+      <div class="status"><span id="audioLed"></span><b id="audioState">AUDIO OFFLINE</b><small>16.384 MHz / ÷1024</small></div>
+    </header>
+
+    <main>
+      <section class="scope-panel panel">
+        <div class="panel-title"><b>MASTER OUTPUT</b><span id="clock">00:00.000</span></div>
+        <canvas id="scope"></canvas>
+        <div class="master-row">
+          <label>MASTER <output id="masterOut">128</output><input id="master" type="range" min="0" max="255" value="128"></label>
+          <label>CLIP <select id="clip"><option value="0">OFF</option><option value="1" selected>0 dB</option><option value="2">−1.16 dB</option><option value="3">−2.50 dB</option></select></label>
+          <button id="mute" class="square">MUTE</button><button id="panic" class="square danger">STOP ALL</button>
+        </div>
+      </section>
+
+      <section class="rom-panel panel">
+        <div class="panel-title"><b>PHRASE ROM</b><span>25-BIT / UP TO 32 MiB</span></div>
+        <label class="drop" id="drop"><input id="romInput" type="file" accept=".bin,.rom"><b>DROP YMZ770B/C ROM</b><span>or click to load an AMMSL / AMMS-A bank</span></label>
+        <label class="swap"><input id="swap16" type="checkbox" checked> 16-BIT BYTE SWAP（物理ROMダンプ）</label>
+        <div class="rom-meta"><span>STATUS</span><b id="romStatus">DEMO BANK ACTIVE</b><span>CRC32</span><b id="crc">—</b><span>PHRASES</span><b id="phrases">08 SYNTHETIC</b></div>
+        <p class="note">実ROMはローカルのAMMデコーダでPCM化されます。ROMデータは外部へ送信されません。</p>
+      </section>
+
+      <section class="channels panel">
+        <div class="panel-title"><b>PLAYBACK CHANNELS</b><span>CH 0—7 / STEREO MIX</span></div>
+        <div id="channelGrid"></div>
+      </section>
+
+      <section class="sequence-panel panel">
+        <div class="panel-title"><b>SEQUENCE PLAYER</b><span>PLAY PHRASES IN ORDER</span></div>
+        <div class="sequence-controls">
+          <label>PHRASE LIST<textarea id="sequenceText" rows="2" spellcheck="false">017 019 020 021</textarea></label>
+          <label>CHANNEL<select id="sequenceChannel"><option>0</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option></select></label>
+          <label class="sequence-loop">LOOP<input id="sequenceLoop" type="checkbox"></label>
+          <button id="sequencePlay" class="square" disabled>PLAY SEQUENCE</button>
+          <button id="sequenceStop" class="square danger">STOP</button>
+        </div>
+        <div id="sequenceStatus" class="sequence-status">LOAD ROM TO ENABLE SEQUENCE</div>
+      </section>
+
+      <section class="registers panel">
+        <div class="panel-title"><b>REGISTER BUS</b><span>ADDRESS / DATA</span></div>
+        <form id="regForm"><label>REG <input id="reg" value="40" maxlength="2"></label><label>DATA <input id="data" value="00" maxlength="2"></label><button>WRITE</button></form>
+        <pre id="log">READY  YMZ770B/C behavioural core
+PORT   A0=address / A1=data</pre>
+      </section>
+    </main>
+    <footer><span>BEHAVIOURAL EMULATION WORKBENCH</span><span>AMMSL / AMMS-A / 8 VOICES</span></footer>
+  </div>
+  <script type="module" src="src/app.js?v=20260817-2"></script>
+</body></html>

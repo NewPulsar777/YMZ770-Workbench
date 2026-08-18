@@ -1,0 +1,25 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+node_modules/
+dist/
+out/
+tmp/
+work/
+outputs/
+
+# Local ROM/audio data must never be published.
+*.bin
+*.BIN
+*.rom
+*.ROM
+*.wav
+*.WAV
+
+# Platform build products.
+*.exe
+*.obj
+*.pdb
+native/amm_decode
+native/amm_decode.exe
+

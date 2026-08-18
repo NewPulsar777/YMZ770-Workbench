@@ -1,0 +1,45 @@
+{
+  "name": "ymz770-workbench",
+  "version": "1.0.0",
+  "description": "Yamaha YMZ770B/C AMM ROM workbench",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test",
+    "start:windows": "electron .",
+    "build:decoder:windows": "powershell -ExecutionPolicy Bypass -File windows/build-decoder.ps1",
+    "dist:windows": "npm run build:decoder:windows && electron-builder --win portable nsis"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "jp.ymz770.workbench",
+    "productName": "YMZ770B-C Workbench",
+    "asar": true,
+    "files": [
+      "electron/**/*",
+      "index.html",
+      "style.css",
+      "sequence.css",
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      { "from": "native/amm_decode.exe", "to": "native/amm_decode.exe" }
+    ],
+    "win": {
+      "target": ["portable", "nsis"]
+    },
+    "portable": {
+      "artifactName": "YMZ770-Workbench-${version}-${arch}-Portable.${ext}"
+    },
+    "nsis": {
+      "artifactName": "YMZ770-Workbench-${version}-${arch}-Setup.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}

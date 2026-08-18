@@ -1,0 +1,10 @@
+.sequence-panel { grid-column: 1 / -1; }
+.sequence-controls { display: grid; grid-template-columns: minmax(280px, 1fr) 110px 70px auto auto; gap: 10px; align-items: end; }
+.sequence-controls label { display: grid; gap: 5px; font: 10px monospace; }
+.sequence-controls textarea, .sequence-controls select { width: 100%; border: 1px solid #777; background: #d3cfc1; padding: 9px; font: 700 13px monospace; resize: vertical; }
+.sequence-loop { justify-items: center; }
+.sequence-status { margin-top: 10px; padding: 8px; background: #1b211f; color: #aabc83; font: 11px monospace; }
+@media (max-width: 850px) {
+  .sequence-controls { grid-template-columns: 1fr 1fr; }
+  .sequence-controls label:first-child { grid-column: 1 / -1; }
+}
