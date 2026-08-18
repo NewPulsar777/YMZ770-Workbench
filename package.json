@@ -9,7 +9,10 @@
     "test": "node --test",
     "start:windows": "electron .",
     "build:decoder:windows": "powershell -ExecutionPolicy Bypass -File windows/build-decoder.ps1",
-    "dist:windows": "npm run build:decoder:windows && electron-builder --win portable nsis"
+    "dist:windows": "npm run build:decoder:windows && electron-builder --win portable nsis",
+    "start:macos": "electron .",
+    "build:decoder:macos": "zsh macos/build-decoder.command",
+    "dist:macos": "npm run build:decoder:macos && electron-builder --mac dmg zip"
   },
   "devDependencies": {
     "electron": "^38.0.0",
@@ -27,11 +30,11 @@
       "src/**/*",
       "package.json"
     ],
-    "extraResources": [
-      { "from": "native/amm_decode.exe", "to": "native/amm_decode.exe" }
-    ],
     "win": {
-      "target": ["portable", "nsis"]
+      "target": ["portable", "nsis"],
+      "extraResources": [
+        { "from": "native/amm_decode.exe", "to": "native/amm_decode.exe" }
+      ]
     },
     "portable": {
       "artifactName": "YMZ770-Workbench-${version}-${arch}-Portable.${ext}"
@@ -40,6 +43,14 @@
       "artifactName": "YMZ770-Workbench-${version}-${arch}-Setup.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.music",
+      "artifactName": "YMZ770-Workbench-${version}-${arch}.${ext}",
+      "extraResources": [
+        { "from": "native/amm_decode", "to": "native/amm_decode" }
+      ]
     }
   }
 }

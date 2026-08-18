@@ -10,9 +10,10 @@ let rom = null;
 let swap16 = false;
 
 function decoderPath() {
+  const executable = process.platform === 'win32' ? 'amm_decode.exe' : 'amm_decode';
   return app.isPackaged
-    ? path.join(process.resourcesPath, 'native', 'amm_decode.exe')
-    : path.join(app.getAppPath(), 'native', 'amm_decode.exe');
+    ? path.join(process.resourcesPath, 'native', executable)
+    : path.join(app.getAppPath(), 'native', executable);
 }
 
 function logicalView(data, swap) {

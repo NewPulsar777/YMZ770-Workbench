@@ -20,6 +20,6 @@ outputs/
 *.exe
 *.obj
 *.pdb
+*.dmg
 native/amm_decode
 native/amm_decode.exe
-
