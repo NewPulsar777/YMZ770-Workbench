@@ -9,7 +9,7 @@ export class YMZ770B {
     this.address = 0;
     this.mute = false;
     this.digitalOutput = false;
-    this.masterVolume = 128;
+    this.masterVolume = 255;
     this.boost = 0;
     this.clip = 1;
     this.channels = Array.from({ length: 8 }, (_, id) => ({

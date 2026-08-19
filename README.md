@@ -8,6 +8,8 @@ ROMロード時はテーブルの範囲検査に加えて、同じ開始位置�
 
 各チャンネルの `SAVE PHRASE WAV` で単一phraseを保存できます。シーケンス欄の `SAVE WAV` は、指定順序、無音トリム、20msクロスフェード、チャンネル音量・パン、マスター設定を反映した16-bit PCM WAVをオフライン生成します。
 
+起動時のMASTER音量は最大値の255です。
+
 ## Windows standalone版
 
 WindowsではElectronウィンドウ、内蔵localhost API、ネイティブ`amm_decode.exe`を1つのアプリとして配布できます。Pythonや外部ブラウザは不要です。ビルド方法は `windows/BUILD-WINDOWS.md` を参照してください。

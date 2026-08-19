@@ -1,4 +1,4 @@
-import { YMZ770B, parsePhraseSequence } from './ymz770b.js?v=20260817-1';
+import { YMZ770B, parsePhraseSequence } from './ymz770b.js?v=20260819-2';
 const $=s=>document.querySelector(s);
 const API_BASE=location.protocol==='file:'?'http://127.0.0.1:8765':'';
 let ctx,analyser,masterGain,startedAt=0,realRom=false;
