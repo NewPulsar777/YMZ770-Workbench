@@ -15,7 +15,7 @@ const chip=new YMZ770B({start:startVoice,stop:stopVoice,master:applyMaster,chann
 
 const grid=$('#channelGrid');chip.channels.forEach(ch=>{
   const el=document.createElement('div');el.className='channel';el.dataset.ch=ch.id;
-  el.innerHTML=`<div class="ch-head">CH ${ch.id}<i></i></div><label>PHRASE<select class="phrase">${Array.from({length:256},(_,i)=>`<option value="${i}">${String(i).padStart(3,'0')}</option>`).join('')}</select></label><label>LEVEL<input class="vol" type="range" min="0" max="128" value="128"></label><label>PAN<input class="pan" type="range" min="0" max="128" value="64"></label><label>LOOP<input class="loop" type="checkbox"></label><button>KEY ON</button>`;
+  el.innerHTML=`<div class="ch-head">CH ${ch.id}<i></i></div><label>PHRASE<select class="phrase">${Array.from({length:256},(_,i)=>`<option value="${i}">${String(i).padStart(3,'0')}</option>`).join('')}</select></label><label>LEVEL<input class="vol" type="range" min="0" max="128" value="128"></label><label>PAN<input class="pan" type="range" min="0" max="128" value="64"></label><label>LOOP<input class="loop" type="checkbox"></label><button class="key">KEY ON</button><button class="save-wav">SAVE PHRASE WAV</button>`;
   grid.append(el);
   el.querySelector('.phrase').onchange=e=>{
     if(sequencePlayer.active&&sequencePlayer.channel===ch.id)stopSequence('STOPPED BY MANUAL PHRASE CHANGE');
@@ -26,9 +26,10 @@ const grid=$('#channelGrid');chip.channels.forEach(ch=>{
   };
   el.querySelector('.vol').oninput=e=>chip.setVolume(ch.id,+e.target.value);
   el.querySelector('.pan').oninput=e=>chip.setPan(ch.id,+e.target.value);
-  el.querySelector('button').onclick=()=>{audioStart();if(sequencePlayer.active&&sequencePlayer.channel===ch.id){stopSequence();return}ch.playing?chip.keyOff(ch.id):chip.keyOn(ch.id,el.querySelector('.loop').checked)};
+  el.querySelector('.key').onclick=()=>{audioStart();if(sequencePlayer.active&&sequencePlayer.channel===ch.id){stopSequence();return}ch.playing?chip.keyOff(ch.id):chip.keyOn(ch.id,el.querySelector('.loop').checked)};
+  el.querySelector('.save-wav').onclick=()=>savePhraseWav(ch.phrase);
 });
-function renderChannel(ch){const el=document.querySelector(`[data-ch="${ch.id}"]`);el.classList.toggle('active',ch.playing);el.querySelector('button').textContent=ch.playing?'KEY OFF':'KEY ON'}
+function renderChannel(ch){const el=document.querySelector(`[data-ch="${ch.id}"]`);el.classList.toggle('active',ch.playing);el.querySelector('.key').textContent=ch.playing?'KEY OFF':'KEY ON'}
 function sequenceStatus(text){$('#sequenceStatus').textContent=text}
 function playSequenceItem(){
   if(!sequencePlayer.active)return;
@@ -105,14 +106,48 @@ function stopSequence(message='STOPPED'){
   sequenceStatus(message);
 }
 function log(s){$('#log').textContent+=`\n${s}`;$('#log').scrollTop=99999}
+function downloadBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+async function savePhraseWav(phrase){
+  try{
+    if(!realRom)throw new Error('実ROMを読み込んでください');
+    const r=await fetch(`${API_BASE}/api/phrase?n=${phrase}`);if(!r.ok){const e=await r.json().catch(()=>({error:r.statusText}));throw new Error(e.error)}
+    downloadBlob(await r.blob(),`ymz770-phrase-${String(phrase).padStart(3,'0')}.wav`);log(`WAV    phrase ${String(phrase).padStart(3,'0')} saved`);
+  }catch(e){sequenceStatus(`ERROR: ${e.message}`)}
+}
+function audioBufferToWav(buffer){
+  const channels=buffer.numberOfChannels,frames=buffer.length,dataBytes=frames*channels*2,out=new ArrayBuffer(44+dataBytes),v=new DataView(out);
+  const text=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i))};
+  text(0,'RIFF');v.setUint32(4,36+dataBytes,true);text(8,'WAVE');text(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,channels,true);v.setUint32(24,buffer.sampleRate,true);v.setUint32(28,buffer.sampleRate*channels*2,true);v.setUint16(32,channels*2,true);v.setUint16(34,16,true);text(36,'data');v.setUint32(40,dataBytes,true);
+  const source=Array.from({length:channels},(_,c)=>buffer.getChannelData(c));let o=44;
+  for(let i=0;i<frames;i++)for(let c=0;c<channels;c++){const s=Math.max(-1,Math.min(1,source[c][i]));v.setInt16(o,s<0?s*32768:s*32767,true);o+=2}
+  return new Blob([out],{type:'audio/wav'});
+}
+async function saveSequenceWav(){
+  const button=$('#sequenceWav');button.disabled=true;
+  try{
+    if(!realRom)throw new Error('実ROMを読み込んでください');
+    const items=parsePhraseSequence($('#sequenceText').value);if(!items.length)throw new Error('PHRASE番号を入力してください');
+    const ch=chip.channels[+$('#sequenceChannel').value],select=document.querySelector(`[data-ch="${ch.id}"] .phrase`);
+    for(const phrase of items)if(select.options[phrase]?.disabled)throw new Error(`PHRASE ${String(phrase).padStart(3,'0')} は未使用です`);
+    await audioStart();const buffers=[];
+    for(let i=0;i<items.length;i++){sequenceStatus(`WAV PREPARING ${i+1}/${items.length}`);buffers.push(await fetchPhrase(items[i]))}
+    const regions=buffers.map(audibleRegion),crossfade=.020;let duration=regions.reduce((n,r)=>n+r.duration,0)-crossfade*Math.max(0,regions.length-1);
+    if(duration>3600)throw new Error('WAV出力は1時間以内にしてください');
+    const rate=Math.max(...buffers.map(b=>b.sampleRate)),offline=new OfflineAudioContext(2,Math.ceil(duration*rate)+1,rate),mix=offline.createGain(),pan=offline.createStereoPanner();
+    mix.gain.value=(ch.volume/128)*.11*(chip.mute?0:(chip.masterVolume/128)*Math.pow(2,chip.boost));pan.pan.value=ch.pan/64-1;mix.connect(pan).connect(offline.destination);
+    let cursor=0;buffers.forEach((buffer,i)=>{const region=regions[i],source=offline.createBufferSource(),fade=offline.createGain(),fadeTime=Math.min(crossfade,region.duration/4);source.buffer=buffer;source.connect(fade).connect(mix);fade.gain.setValueAtTime(i?0:1,cursor);if(i)fade.gain.linearRampToValueAtTime(1,cursor+fadeTime);if(i<buffers.length-1){fade.gain.setValueAtTime(1,cursor+region.duration-fadeTime);fade.gain.linearRampToValueAtTime(0,cursor+region.duration)}source.start(cursor,region.offset,region.duration);cursor+=region.duration-(i<buffers.length-1?crossfade:0)});
+    sequenceStatus('WAV RENDERING…');const rendered=await offline.startRendering(),tag=items.slice(0,24).map(n=>String(n).padStart(3,'0')).join('-'),suffix=items.length>24?`-plus-${items.length-24}`:'';downloadBlob(audioBufferToWav(rendered),`ymz770-sequence-${tag}${suffix}.wav`);sequenceStatus(`WAV SAVED · ${duration.toFixed(2)} SEC`);log(`WAV    sequence / ${items.length} phrases / ${duration.toFixed(3)} sec`);
+  }catch(e){sequenceStatus(`ERROR: ${e.message}`)}finally{button.disabled=!realRom}
+}
 $('#master').oninput=e=>{chip.writeRegister(1,+e.target.value);$('#masterOut').value=e.target.value};$('#clip').onchange=e=>chip.writeRegister(2,(+e.target.value)<<4);$('#mute').onclick=()=>{chip.writeRegister(0,chip.mute?0:1);$('#mute').textContent=chip.mute?'UNMUTE':'MUTE'};$('#panic').onclick=()=>chip.channels.forEach(c=>chip.keyOff(c.id));
 $('#regForm').onsubmit=e=>{e.preventDefault();const r=parseInt($('#reg').value,16),d=parseInt($('#data').value,16);if(Number.isNaN(r)||Number.isNaN(d))return;chip.writePort(0,r);chip.writePort(1,d);log(`WRITE  $${r.toString(16).padStart(2,'0').toUpperCase()} ← $${d.toString(16).padStart(2,'0').toUpperCase()}`)};
 $('#sequencePlay').onclick=async()=>{try{const items=parsePhraseSequence($('#sequenceText').value);if(!items.length)throw new Error('PHRASE番号を入力してください');stopSequence();const select=document.querySelector(`[data-ch="${+$('#sequenceChannel').value}"] .phrase`);for(const phrase of items)if(realRom&&select.options[phrase]?.disabled)throw new Error(`PHRASE ${String(phrase).padStart(3,'0')} は未使用です`);sequencePlayer.items=items;sequencePlayer.index=0;sequencePlayer.channel=+$('#sequenceChannel').value;sequencePlayer.loop=$('#sequenceLoop').checked;sequencePlayer.active=true;await audioStart();if(ctx.state!=='running')throw new Error('ブラウザの音声再生が許可されていません');await scheduleGaplessSequence();log(`SEQ    CH${sequencePlayer.channel} / ${items.map(n=>String(n).padStart(3,'0')).join(' ')}`)}catch(e){stopSequence(`ERROR: ${e.message}`)}};
 $('#sequenceStop').onclick=()=>stopSequence();
+$('#sequenceWav').onclick=saveSequenceWav;
 function crc32(bytes){let c=-1;for(const b of bytes){c^=b;for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xedb88320:0)}return((c^-1)>>>0).toString(16).padStart(8,'0').toUpperCase()}
 $('#romInput').onchange=async e=>{
   const f=e.target.files[0];if(!f)return;
-  $('#sequencePlay').disabled=true;sequenceStatus('LOADING ROM…');
+  $('#sequencePlay').disabled=true;$('#sequenceWav').disabled=true;sequenceStatus('LOADING ROM…');
   const bytes=new Uint8Array(await f.arrayBuffer());$('#romStatus').textContent='LOADING…';
   try{
     const r=await fetch(`${API_BASE}/api/rom`,{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Swap16':$('#swap16').checked?'1':'0'},body:bytes});
@@ -123,8 +158,8 @@ $('#romInput').onchange=async e=>{
     chip.channels.forEach(ch=>chip.setPhrase(ch.id,info.phrases[0]));
     $('#romStatus').textContent=`${f.name} / ${(bytes.length/1048576).toFixed(2)} MiB`;$('#crc').textContent=crc32(bytes);
     const first=String(info.phrases[0]).padStart(3,'0'),last=String(info.phrases.at(-1)).padStart(3,'0');$('#phrases').textContent=`${info.phrases.length} / ${first}—${last}`;
-    $('#sequencePlay').disabled=false;sequenceStatus('READY');log(`ROM    ${bytes.length} bytes / ${info.phrases.length} playable / ${info.unusedPhrases??0} unused / ${info.uniquePointers??info.phrases.length} unique pointers / first ${first}`);
-  }catch(err){realRom=false;$('#sequencePlay').disabled=true;$('#romStatus').textContent='ROM LOAD FAILED';sequenceStatus(`ERROR: ${err.message}`);log(`ERROR  ${err.message}`)}
+    $('#sequencePlay').disabled=false;$('#sequenceWav').disabled=false;sequenceStatus('READY');log(`ROM    ${bytes.length} bytes / ${info.phrases.length} playable / ${info.unusedPhrases??0} unused / ${info.uniquePointers??info.phrases.length} unique pointers / first ${first}`);
+  }catch(err){realRom=false;$('#sequencePlay').disabled=true;$('#sequenceWav').disabled=true;$('#romStatus').textContent='ROM LOAD FAILED';sequenceStatus(`ERROR: ${err.message}`);log(`ERROR  ${err.message}`)}
 };
 
 const canvas=$('#scope'),g=canvas.getContext('2d');function draw(){const d=devicePixelRatio||1,w=canvas.clientWidth*d,h=canvas.clientHeight*d;if(canvas.width!==w){canvas.width=w;canvas.height=h}g.fillStyle='#171d1b';g.fillRect(0,0,w,h);g.strokeStyle='#303d38';g.lineWidth=1;for(let x=0;x<w;x+=w/12){g.beginPath();g.moveTo(x,0);g.lineTo(x,h);g.stroke()}for(let y=0;y<h;y+=h/6){g.beginPath();g.moveTo(0,y);g.lineTo(w,y);g.stroke()}const a=new Uint8Array(512);if(analyser)analyser.getByteTimeDomainData(a);else a.fill(128);g.strokeStyle='#b8d76a';g.lineWidth=2*d;g.beginPath();a.forEach((v,i)=>{const x=i/(a.length-1)*w,y=v/255*h;i?g.lineTo(x,y):g.moveTo(x,y)});g.stroke();if(ctx){const t=ctx.currentTime-startedAt,m=Math.floor(t/60),s=Math.floor(t%60),ms=Math.floor(t%1*1000);$('#clock').textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`}requestAnimationFrame(draw)}draw();

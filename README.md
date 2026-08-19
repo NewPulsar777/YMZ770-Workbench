@@ -6,6 +6,8 @@ YMZ770C仕様に従い、phrase開始位置をATBL byteのD0を含む25-bit byte
 
 ROMロード時はテーブルの範囲検査に加えて、同じ開始位置を共有するphraseをまとめ、固有ポインタごとにAMM先頭フレームをprobeします。終端ダミーなど復号不能なエントリは未使用としてUIから除外します。
 
+各チャンネルの `SAVE PHRASE WAV` で単一phraseを保存できます。シーケンス欄の `SAVE WAV` は、指定順序、無音トリム、20msクロスフェード、チャンネル音量・パン、マスター設定を反映した16-bit PCM WAVをオフライン生成します。
+
 ## Windows standalone版
 
 WindowsではElectronウィンドウ、内蔵localhost API、ネイティブ`amm_decode.exe`を1つのアプリとして配布できます。Pythonや外部ブラウザは不要です。ビルド方法は `windows/BUILD-WINDOWS.md` を参照してください。
