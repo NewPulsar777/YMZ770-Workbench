@@ -10,6 +10,8 @@ ROMロード時はテーブルの範囲検査に加えて、同じ開始位置�
 
 起動時のMASTER音量は最大値の255です。
 
+各チャンネルのPHRASE欄には前後移動ボタンがあり、未使用番号を飛ばして有効なPHRASEだけを循環選択できます。再生中の変更では新しいPHRASEへ即座に切り替わります。
+
 ## Windows standalone版
 
 WindowsではElectronウィンドウ、内蔵localhost API、ネイティブ`amm_decode.exe`を1つのアプリとして配布できます。Pythonや外部ブラウザは不要です。ビルド方法は `windows/BUILD-WINDOWS.md` を参照してください。

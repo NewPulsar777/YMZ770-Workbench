@@ -1,4 +1,4 @@
-import { YMZ770B, parsePhraseSequence } from './ymz770b.js?v=20260819-2';
+import { YMZ770B, parsePhraseSequence, findAdjacentPhrase } from './ymz770b.js?v=20260923-1';
 const $=s=>document.querySelector(s);
 const API_BASE=location.protocol==='file:'?'http://127.0.0.1:8765':'';
 let ctx,analyser,masterGain,startedAt=0,realRom=false;
@@ -15,7 +15,7 @@ const chip=new YMZ770B({start:startVoice,stop:stopVoice,master:applyMaster,chann
 
 const grid=$('#channelGrid');chip.channels.forEach(ch=>{
   const el=document.createElement('div');el.className='channel';el.dataset.ch=ch.id;
-  el.innerHTML=`<div class="ch-head">CH ${ch.id}<i></i></div><label>PHRASE<select class="phrase">${Array.from({length:256},(_,i)=>`<option value="${i}">${String(i).padStart(3,'0')}</option>`).join('')}</select></label><label>LEVEL<input class="vol" type="range" min="0" max="128" value="128"></label><label>PAN<input class="pan" type="range" min="0" max="128" value="64"></label><label>LOOP<input class="loop" type="checkbox"></label><button class="key">KEY ON</button><button class="save-wav">SAVE PHRASE WAV</button>`;
+  el.innerHTML=`<div class="ch-head">CH ${ch.id}<i></i></div><label>PHRASE<div class="phrase-nav"><button class="phrase-prev" title="前の有効PHRASE">◀</button><select class="phrase">${Array.from({length:256},(_,i)=>`<option value="${i}">${String(i).padStart(3,'0')}</option>`).join('')}</select><button class="phrase-next" title="次の有効PHRASE">▶</button></div></label><label>LEVEL<input class="vol" type="range" min="0" max="128" value="128"></label><label>PAN<input class="pan" type="range" min="0" max="128" value="64"></label><label>LOOP<input class="loop" type="checkbox"></label><button class="key">KEY ON</button><button class="save-wav">SAVE PHRASE WAV</button>`;
   grid.append(el);
   el.querySelector('.phrase').onchange=e=>{
     if(sequencePlayer.active&&sequencePlayer.channel===ch.id)stopSequence('STOPPED BY MANUAL PHRASE CHANGE');
@@ -24,6 +24,9 @@ const grid=$('#channelGrid');chip.channels.forEach(ch=>{
     chip.setPhrase(ch.id,+e.target.value);
     if(wasPlaying)chip.keyOn(ch.id,el.querySelector('.loop').checked);
   };
+  const stepPhrase=direction=>{const select=el.querySelector('.phrase'),enabled=Array.from(select.options,option=>!option.disabled),next=findAdjacentPhrase(+select.value,direction,enabled);if(next!==+select.value){select.value=String(next);select.dispatchEvent(new Event('change'))}};
+  el.querySelector('.phrase-prev').onclick=()=>stepPhrase(-1);
+  el.querySelector('.phrase-next').onclick=()=>stepPhrase(1);
   el.querySelector('.vol').oninput=e=>chip.setVolume(ch.id,+e.target.value);
   el.querySelector('.pan').oninput=e=>chip.setPan(ch.id,+e.target.value);
   el.querySelector('.key').onclick=()=>{audioStart();if(sequencePlayer.active&&sequencePlayer.channel===ch.id){stopSequence();return}ch.playing?chip.keyOff(ch.id):chip.keyOn(ch.id,el.querySelector('.loop').checked)};

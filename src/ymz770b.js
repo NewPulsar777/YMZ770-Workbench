@@ -102,3 +102,14 @@ export function parsePhraseSequence(text) {
     return value;
   });
 }
+
+export function findAdjacentPhrase(current, direction, enabled) {
+  const count = enabled.length;
+  if (!count) return current;
+  const step = direction < 0 ? -1 : 1;
+  for (let distance = 1; distance <= count; distance++) {
+    const candidate = (current + step * distance + count) % count;
+    if (enabled[candidate]) return candidate;
+  }
+  return current;
+}
