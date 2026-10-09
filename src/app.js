@@ -5,13 +5,14 @@ let ctx,analyser,masterGain,startedAt=0,realRom=false;
 const voices=Array(8).fill(null),voiceGeneration=Array(8).fill(0),decodedPhrases=new Map();
 const sequencePlayer={active:false,items:[],index:0,channel:0,loop:false,sources:[],timers:[],gain:null,pan:null};
 const wave=['sine','square','sawtooth','triangle','sine','square','triangle','sawtooth'];
+const CHANNEL_OUTPUT_GAIN=.50;
 
 async function audioStart(){if(!ctx){ctx=new AudioContext();masterGain=ctx.createGain();analyser=ctx.createAnalyser();analyser.fftSize=1024;masterGain.connect(analyser).connect(ctx.destination);startedAt=ctx.currentTime;$('#audioLed').classList.add('on')}await ctx.resume();$('#audioState').textContent=ctx.state==='running'?'AUDIO READY':'AUDIO SUSPENDED'}
 function stopVoice(ch){voiceGeneration[ch.id]++;const v=voices[ch.id];if(v){try{v.source.stop()}catch{}v.source.disconnect();voices[ch.id]=null}renderChannel(ch)}
 async function fetchPhrase(n){if(decodedPhrases.has(n))return decodedPhrases.get(n);const r=await fetch(`${API_BASE}/api/phrase?n=${n}`);if(!r.ok){const e=await r.json().catch(()=>({error:r.statusText}));throw new Error(e.error)}const b=await ctx.decodeAudioData(await r.arrayBuffer());decodedPhrases.set(n,b);return b}
-async function startVoice(ch,chip){audioStart();const token=++voiceGeneration[ch.id];const old=voices[ch.id];if(old){try{old.source.stop()}catch{}old.source.disconnect();voices[ch.id]=null}let source;if(realRom){try{const buffer=await fetchPhrase(ch.phrase);if(!ch.playing||voiceGeneration[ch.id]!==token)return;source=ctx.createBufferSource();source.buffer=buffer;source.loop=ch.loop}catch(e){if(voiceGeneration[ch.id]!==token)return;ch.playing=false;renderChannel(ch);stopSequence(`ERROR: PHRASE ${String(ch.phrase).padStart(3,'0')} — ${e.message}`);log(`ERROR  phrase ${ch.phrase}: ${e.message}`);return}}else{source=ctx.createOscillator();source.type=wave[ch.phrase%wave.length];source.frequency.value=55*Math.pow(2,(ch.phrase%36)/12)}const gain=ctx.createGain(),pan=ctx.createStereoPanner();gain.gain.value=(ch.volume/128)*.11;pan.pan.value=ch.pan/64-1;source.connect(gain).connect(pan).connect(masterGain);source.start();voices[ch.id]={source,gain,pan};source.onended=()=>{if(!source.loop&&voices[ch.id]?.source===source){ch.playing=false;voices[ch.id]=null;renderChannel(ch);handleVoiceEnded(ch)}};applyMaster(chip);renderChannel(ch)}
+async function startVoice(ch,chip){audioStart();const token=++voiceGeneration[ch.id];const old=voices[ch.id];if(old){try{old.source.stop()}catch{}old.source.disconnect();voices[ch.id]=null}let source;if(realRom){try{const buffer=await fetchPhrase(ch.phrase);if(!ch.playing||voiceGeneration[ch.id]!==token)return;source=ctx.createBufferSource();source.buffer=buffer;source.loop=ch.loop}catch(e){if(voiceGeneration[ch.id]!==token)return;ch.playing=false;renderChannel(ch);stopSequence(`ERROR: PHRASE ${String(ch.phrase).padStart(3,'0')} — ${e.message}`);log(`ERROR  phrase ${ch.phrase}: ${e.message}`);return}}else{source=ctx.createOscillator();source.type=wave[ch.phrase%wave.length];source.frequency.value=55*Math.pow(2,(ch.phrase%36)/12)}const gain=ctx.createGain(),pan=ctx.createStereoPanner();gain.gain.value=(ch.volume/128)*CHANNEL_OUTPUT_GAIN;pan.pan.value=ch.pan/64-1;source.connect(gain).connect(pan).connect(masterGain);source.start();voices[ch.id]={source,gain,pan};source.onended=()=>{if(!source.loop&&voices[ch.id]?.source===source){ch.playing=false;voices[ch.id]=null;renderChannel(ch);handleVoiceEnded(ch)}};applyMaster(chip);renderChannel(ch)}
 function applyMaster(chip){if(masterGain)masterGain.gain.value=chip.mute?0:(chip.masterVolume/128)*Math.pow(2,chip.boost)}
-const chip=new YMZ770B({start:startVoice,stop:stopVoice,master:applyMaster,channel(ch){const v=voices[ch.id];if(v){v.gain.gain.value=(ch.volume/128)*.11;v.pan.pan.value=ch.pan/64-1}renderChannel(ch)}});
+const chip=new YMZ770B({start:startVoice,stop:stopVoice,master:applyMaster,channel(ch){const v=voices[ch.id];if(v){v.gain.gain.value=(ch.volume/128)*CHANNEL_OUTPUT_GAIN;v.pan.pan.value=ch.pan/64-1}renderChannel(ch)}});
 
 const grid=$('#channelGrid');chip.channels.forEach(ch=>{
   const el=document.createElement('div');el.className='channel';el.dataset.ch=ch.id;
@@ -65,7 +66,7 @@ async function scheduleGaplessSequence(){
   if(!sequencePlayer.active||sequencePlayer.token!==token)return;
   const ch=chip.channels[sequencePlayer.channel],select=document.querySelector(`[data-ch="${ch.id}"] .phrase`);
   sequencePlayer.gain=ctx.createGain();sequencePlayer.pan=ctx.createStereoPanner();
-  sequencePlayer.gain.gain.value=(ch.volume/128)*.11;sequencePlayer.pan.pan.value=ch.pan/64-1;
+  sequencePlayer.gain.gain.value=(ch.volume/128)*CHANNEL_OUTPUT_GAIN;sequencePlayer.pan.pan.value=ch.pan/64-1;
   sequencePlayer.gain.connect(sequencePlayer.pan).connect(masterGain);
   let cursor=ctx.currentTime+.08,totalTrimmed=0;const crossfade=.020;
   buffers.forEach((buffer,i)=>{
@@ -137,7 +138,7 @@ async function saveSequenceWav(){
     const regions=buffers.map(audibleRegion),crossfade=.020;let duration=regions.reduce((n,r)=>n+r.duration,0)-crossfade*Math.max(0,regions.length-1);
     if(duration>3600)throw new Error('WAV出力は1時間以内にしてください');
     const rate=Math.max(...buffers.map(b=>b.sampleRate)),offline=new OfflineAudioContext(2,Math.ceil(duration*rate)+1,rate),mix=offline.createGain(),pan=offline.createStereoPanner();
-    mix.gain.value=(ch.volume/128)*.11*(chip.mute?0:(chip.masterVolume/128)*Math.pow(2,chip.boost));pan.pan.value=ch.pan/64-1;mix.connect(pan).connect(offline.destination);
+    mix.gain.value=(ch.volume/128)*CHANNEL_OUTPUT_GAIN*(chip.mute?0:(chip.masterVolume/128)*Math.pow(2,chip.boost));pan.pan.value=ch.pan/64-1;mix.connect(pan).connect(offline.destination);
     let cursor=0;buffers.forEach((buffer,i)=>{const region=regions[i],source=offline.createBufferSource(),fade=offline.createGain(),fadeTime=Math.min(crossfade,region.duration/4);source.buffer=buffer;source.connect(fade).connect(mix);fade.gain.setValueAtTime(i?0:1,cursor);if(i)fade.gain.linearRampToValueAtTime(1,cursor+fadeTime);if(i<buffers.length-1){fade.gain.setValueAtTime(1,cursor+region.duration-fadeTime);fade.gain.linearRampToValueAtTime(0,cursor+region.duration)}source.start(cursor,region.offset,region.duration);cursor+=region.duration-(i<buffers.length-1?crossfade:0)});
     sequenceStatus('WAV RENDERING…');const rendered=await offline.startRendering(),tag=items.slice(0,24).map(n=>String(n).padStart(3,'0')).join('-'),suffix=items.length>24?`-plus-${items.length-24}`:'';downloadBlob(audioBufferToWav(rendered),`ymz770-sequence-${tag}${suffix}.wav`);sequenceStatus(`WAV SAVED · ${duration.toFixed(2)} SEC`);log(`WAV    sequence / ${items.length} phrases / ${duration.toFixed(3)} sec`);
   }catch(e){sequenceStatus(`ERROR: ${e.message}`)}finally{button.disabled=!realRom}
