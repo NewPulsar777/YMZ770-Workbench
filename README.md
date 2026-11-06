@@ -15,10 +15,12 @@ ROMロード時はテーブルの範囲検査に加えて、同じ開始位置�
 ## Windows standalone版
 
 WindowsではElectronウィンドウ、内蔵localhost API、ネイティブ`amm_decode.exe`を1つのアプリとして配布できます。Pythonや外部ブラウザは不要です。ビルド方法は `windows/BUILD-WINDOWS.md` を参照してください。
+配布実行ファイルとインストーラーには、`build/icon.ico`の土星アイコンが組み込まれます。
 
 ## macOS standalone版
 
 macOSではElectronの`.app`とネイティブ`amm_decode`をDMGまたはZIPとして配布できます。Pythonや外部ブラウザは不要です。ビルド方法は `macos/BUILD-MACOS.md` を参照してください。
+アプリと配布イメージには、`build/icon.icns`の土星アイコンが組み込まれます。
 
 ```sh
 clang++ -std=c++20 -O3 native/amm_decode.cpp native/mpeg_audio.cpp -o native/amm_decode

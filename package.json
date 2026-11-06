@@ -31,6 +31,7 @@
       "package.json"
     ],
     "win": {
+      "icon": "build/icon.ico",
       "target": ["portable", "nsis"],
       "extraResources": [
         { "from": "native/amm_decode.exe", "to": "native/amm_decode.exe" }
@@ -45,6 +46,7 @@
       "allowToChangeInstallationDirectory": true
     },
     "mac": {
+      "icon": "build/icon.icns",
       "target": ["dmg", "zip"],
       "category": "public.app-category.music",
       "artifactName": "YMZ770-Workbench-${version}-${arch}.${ext}",
