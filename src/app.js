@@ -16,7 +16,7 @@ const chip=new YMZ770B({start:startVoice,stop:stopVoice,master:applyMaster,chann
 
 const grid=$('#channelGrid');chip.channels.forEach(ch=>{
   const el=document.createElement('div');el.className='channel';el.dataset.ch=ch.id;
-  el.innerHTML=`<div class="ch-head">CH ${ch.id}<i></i></div><label>PHRASE<div class="phrase-nav"><button class="phrase-prev" title="前の有効PHRASE">◀</button><select class="phrase">${Array.from({length:256},(_,i)=>`<option value="${i}">${String(i).padStart(3,'0')}</option>`).join('')}</select><button class="phrase-next" title="次の有効PHRASE">▶</button></div></label><label>LEVEL<input class="vol" type="range" min="0" max="128" value="128"></label><label>PAN<input class="pan" type="range" min="0" max="128" value="64"></label><label>LOOP<input class="loop" type="checkbox"></label><button class="key">KEY ON</button><button class="save-wav">SAVE PHRASE WAV</button>`;
+  el.innerHTML=`<div class="ch-head">CH ${ch.id}<i></i></div><label>PHRASE<div class="phrase-nav"><button class="phrase-prev" title="前の有効PHRASE">◀</button><select class="phrase">${Array.from({length:256},(_,i)=>`<option value="${i}">${String(i).padStart(3,'0')}</option>`).join('')}</select><button class="phrase-next" title="次の有効PHRASE">▶</button></div></label><button class="key" title="ショートカット: ${ch.id}">KEY ON</button><label>LEVEL<input class="vol" type="range" min="0" max="128" value="128"></label><label>PAN<input class="pan" type="range" min="0" max="128" value="64"></label><label>LOOP<input class="loop" type="checkbox"></label><button class="save-wav">SAVE PHRASE WAV</button>`;
   grid.append(el);
   el.querySelector('.phrase').onchange=e=>{
     if(sequencePlayer.active&&sequencePlayer.channel===ch.id)stopSequence('STOPPED BY MANUAL PHRASE CHANGE');
@@ -32,6 +32,11 @@ const grid=$('#channelGrid');chip.channels.forEach(ch=>{
   el.querySelector('.pan').oninput=e=>chip.setPan(ch.id,+e.target.value);
   el.querySelector('.key').onclick=()=>{audioStart();if(sequencePlayer.active&&sequencePlayer.channel===ch.id){stopSequence();return}ch.playing?chip.keyOff(ch.id):chip.keyOn(ch.id,el.querySelector('.loop').checked)};
   el.querySelector('.save-wav').onclick=()=>savePhraseWav(ch.phrase);
+});
+document.addEventListener('keydown',e=>{
+  if(e.repeat||e.ctrlKey||e.altKey||e.metaKey||document.activeElement===$('#sequenceText')||!/^\d$/.test(e.key))return;
+  const ch=Number(e.key);if(ch>7)return;
+  e.preventDefault();document.querySelector(`[data-ch="${ch}"] .key`)?.click();
 });
 function renderChannel(ch){const el=document.querySelector(`[data-ch="${ch.id}"]`);el.classList.toggle('active',ch.playing);el.querySelector('.key').textContent=ch.playing?'KEY OFF':'KEY ON'}
 function sequenceStatus(text){$('#sequenceStatus').textContent=text}
