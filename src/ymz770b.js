@@ -113,3 +113,16 @@ export function findAdjacentPhrase(current, direction, enabled) {
   }
   return current;
 }
+
+export function normalizedPlaybackPosition(elapsed, duration, loop = false) {
+  if (!Number.isFinite(elapsed) || !Number.isFinite(duration) || duration <= 0) return null;
+  if (loop) return ((elapsed % duration) + duration) % duration / duration;
+  return Math.max(0, Math.min(1, elapsed / duration));
+}
+
+export function formatPlaybackTime(seconds) {
+  if (!Number.isFinite(seconds) || seconds < 0) return '--:--.-';
+  const tenths = Math.floor(seconds * 10), hours = Math.floor(tenths / 36000);
+  const minutes = Math.floor(tenths / 600) % 60, secs = ((tenths % 600) / 10).toFixed(1).padStart(4, '0');
+  return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${secs}` : `${minutes}:${secs}`;
+}

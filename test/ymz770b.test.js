@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {YMZ770B,parsePhraseSequence,findAdjacentPhrase} from '../src/ymz770b.js';
+import test from 'node:test';import assert from 'node:assert/strict';import {YMZ770B,parsePhraseSequence,findAdjacentPhrase,normalizedPlaybackPosition,formatPlaybackTime} from '../src/ymz770b.js';
 test('master volume defaults to maximum',()=>{assert.equal(new YMZ770B().masterVolume,255)});
 test('address/data ports update global registers',()=>{const y=new YMZ770B();y.writePort(0,1);y.writePort(1,200);assert.equal(y.masterVolume,200)});
 test('channel register map and key control',()=>{let starts=0;const y=new YMZ770B({start(){starts++}});y.writeRegister(0x44,9);y.writeRegister(0x45,100);y.writeRegister(0x46,8);y.writeRegister(0x47,3);assert.deepEqual({...y.channels[1]},{id:1,phrase:9,volume:100,pan:64,loop:true,playing:true});assert.equal(starts,1);y.writeRegister(0x47,0);assert.equal(y.channels[1].playing,false)});
@@ -6,3 +6,5 @@ test('sequence timer combines high and low bytes',()=>{const y=new YMZ770B();y.w
 test('phrase list accepts padded decimal, separators, and explicit hex',()=>{assert.deepEqual(parsePhraseSequence('017 019,020\n0x1f'),[17,19,20,31])});
 test('phrase list rejects values outside the register range',()=>{assert.throws(()=>parsePhraseSequence('17 256'),/256/)});
 test('phrase stepping skips unavailable entries and wraps',()=>{const enabled=[false,true,false,true];assert.equal(findAdjacentPhrase(1,1,enabled),3);assert.equal(findAdjacentPhrase(3,1,enabled),1);assert.equal(findAdjacentPhrase(1,-1,enabled),3)});
+test('playback position clamps and loops without seeking',()=>{assert.equal(normalizedPlaybackPosition(2,8),.25);assert.equal(normalizedPlaybackPosition(10,8),1);assert.equal(normalizedPlaybackPosition(10,8,true),.25);assert.equal(normalizedPlaybackPosition(1,0),null)});
+test('playback time uses tenths and supports long phrases',()=>{assert.equal(formatPlaybackTime(65.98),'1:05.9');assert.equal(formatPlaybackTime(3661.2),'1:01:01.2');assert.equal(formatPlaybackTime(NaN),'--:--.-')});
